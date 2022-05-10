@@ -8,6 +8,7 @@
 typedef struct {
     float dist;
     Vec3 normal;
+    Vec3 albedo;
 } HitInfo;
 
 #endif // HITINFO_H

@@ -12,7 +12,7 @@
 
 #define MIN(a, b) a < b ? a : b
 
-bool ray_sphere_intersection(Ray* ray, Vec3 center, float radius, HitInfo* r_hitInfo) {
+bool ray_sphere_intersection(Ray* ray, Vec3 center, float radius, Vec3 color, HitInfo* r_hitInfo) {
     Vec3 v = vec3Sub(ray->origin, center);
     float b = dot(v, ray->dir);
     float c = b * b - (dot(v, v) - radius * radius);
@@ -23,13 +23,14 @@ bool ray_sphere_intersection(Ray* ray, Vec3 center, float radius, HitInfo* r_hit
         r_hitInfo->normal = normalize(
             vec3Sub(
                 rayAt(ray, dist), center));
+        r_hitInfo->albedo = color;
 
         intersect = true;
     }
     return intersect;
 }
 
-bool ray_tri_intersection(Ray* ray, Vec3 v0, Vec3 v1, Vec3 v2, HitInfo* r_hitInfo) {
+bool ray_tri_intersection(Ray* ray, Vec3 v0, Vec3 v1, Vec3 v2, Vec3 color, HitInfo* r_hitInfo) {
     const float EPSILON = 0.00000001;
     Vec3 edge1 = vec3Sub(v1, v0);
     Vec3 edge2 = vec3Sub(v2, v0);
@@ -55,12 +56,13 @@ bool ray_tri_intersection(Ray* ray, Vec3 v0, Vec3 v1, Vec3 v2, HitInfo* r_hitInf
 
     r_hitInfo->dist = f * dot(edge2, q);
     r_hitInfo->normal = vec3Scale(normalize(cross(edge2, edge1)), -1.0);
+    r_hitInfo->albedo = color;
     return true;
 }
 
-bool ray_plane_intersection(Ray* ray, Vec3 v0, Vec3 v1, Vec3 v2, Vec3 v3, HitInfo* r_hitInfo) {
-    bool intersection = ray_tri_intersection(ray, v0, v1, v2, r_hitInfo);
-    intersection |= ray_tri_intersection(ray, v1, v3, v2, r_hitInfo);
+bool ray_plane_intersection(Ray* ray, Vec3 v0, Vec3 v1, Vec3 v2, Vec3 v3, Vec3 color, HitInfo* r_hitInfo) {
+    bool intersection = ray_tri_intersection(ray, v0, v1, v2, color, r_hitInfo);
+    intersection |= ray_tri_intersection(ray, v1, v3, v2, color, r_hitInfo);
     r_hitInfo->normal = vec3Scale(r_hitInfo->normal, -1);
 
     return intersection;
@@ -74,6 +76,8 @@ bool sceneTrace(Ray* ray, HitInfo* r_hitInfo) {
         make_vec3(-1.0,  1.0,  0.0),
         make_vec3( 1.0, -1.0,  0.0),
         make_vec3( 1.0,  1.0,  0.0),
+
+        make_vec3( 1.0,  1.0,  1.0),
         r_hitInfo
     );
 
@@ -83,6 +87,8 @@ bool sceneTrace(Ray* ray, HitInfo* r_hitInfo) {
         make_vec3(-1.0,  1.0,  0.0),
         make_vec3( 1.0,  1.0,  0.0),
         make_vec3(-1.0,  1.0,  1.0),
+        make_vec3( 1.0,  1.0,  1.0),
+
         make_vec3( 1.0,  1.0,  1.0),
         r_hitInfo
     );
@@ -94,6 +100,8 @@ bool sceneTrace(Ray* ray, HitInfo* r_hitInfo) {
         make_vec3( 1.0, -1.0,  0.0),
         make_vec3(-1.0, -1.0,  1.0),
         make_vec3( 1.0, -1.0,  1.0),
+
+        make_vec3( 1.0,  1.0,  1.0),
         r_hitInfo
     );
 
@@ -104,6 +112,8 @@ bool sceneTrace(Ray* ray, HitInfo* r_hitInfo) {
         make_vec3( 1.0, -1.0,  1.0),
         make_vec3( 1.0,  1.0,  0.0),
         make_vec3( 1.0,  1.0,  1.0),
+
+        make_vec3( 0.9,  0.1,  0.1),
         r_hitInfo
     );
 
@@ -114,10 +124,13 @@ bool sceneTrace(Ray* ray, HitInfo* r_hitInfo) {
         make_vec3(-1.0, -1.0,  1.0),
         make_vec3(-1.0,  1.0,  0.0),
         make_vec3(-1.0,  1.0,  1.0),
+
+        make_vec3( 0.1,  0.9,  0.1),
         r_hitInfo
     );
 
-    intersection &= ray_sphere_intersection(ray, make_vec3(0, 0, 0), 0.5, r_hitInfo);
+    intersection &= ray_sphere_intersection(ray, make_vec3(0, 0, 0), 0.5, make_vec3(0.8, 0.8, 0.8), r_hitInfo);
+
     return intersection;
 }
 
@@ -125,6 +138,7 @@ Vec3 getColor(Ray* ray) {
     HitInfo hitInfo = {
         .dist = 1000.0,
         .normal = make_vec3(0, 0, 0),
+        .albedo = make_vec3(0, 0, 0),
     };
 
     sceneTrace(ray, &hitInfo);
@@ -134,7 +148,7 @@ Vec3 getColor(Ray* ray) {
         Vec3 position = rayAt(ray, hitInfo.dist);
         Vec3 lightDir = normalize(vec3Sub(lightPos, position));
         float light = dot(lightDir, hitInfo.normal);
-        return make_vec3(light, light, light);
+        return vec3Scale(hitInfo.albedo, light);
     } else {
         return make_vec3(0, 0, 0);
     }
